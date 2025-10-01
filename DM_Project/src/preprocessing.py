@@ -2,7 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 # Columns and rows of interest
 alcohol = pd.read_excel("data/alcohol.xlsx")
@@ -10,29 +11,22 @@ alcohol_filtered = alcohol[alcohol["indicator_name"] == "Alcohol, total per capi
 alcohol_filtered = alcohol_filtered[alcohol_filtered["subgroup"].isin(["Male", "Female"])]
 alcohol_filtered.drop(['source', 'population', 'flag', 'iso3', 'favourable_indicator', 'whoreg6', 'update', 'dataset_id', 'ordered_dimension', 'subgroup_order', 'reference_subgroup'], axis=1, inplace=True)
 
-
 # Columns and rows of interest
 mpi = pd.read_excel("data/mpi.xlsx")
 mpi_filtered = mpi[mpi["indicator_abbr"] == "mpi"]
 mpi_10_plus = mpi_filtered[mpi_filtered["subgroup"].isin(["10-17 years", "18+ years"])]
 mpi_10_plus.drop(['source', 'indicator_name', 'population', 'flag', 'favourable_indicator', 'ordered_dimension', 'subgroup_order', 'reference_subgroup', 'whoreg6', 'dataset_id', 'update'], axis=1, inplace=True)
 
-
 print(alcohol_filtered.head())
 print(mpi_10_plus.head())
-
 
 #print(len(alcohol_filtered))    # = 7866
 #print(len(mpi_10_plus))         # = 422
 
-
 merged = alcohol_filtered.merge(mpi_10_plus, on=["setting", "date"], how="inner")
-
 
 #estimate_x → alkoholkonsumtion per capita (från alcohol.xlsx)
 #estimate_y → Multidimensional Poverty Index (från mpi.xlsx)
-
-
 
 
 pivot = merged.pivot_table(
@@ -48,7 +42,6 @@ pivot = merged.pivot_table(
 ).reset_index()
 
 
-# gender pivot
 pivot = pivot.pivot_table(
     values="estimate_x",
     index=["setting", "date", "estimate_y"],
@@ -60,3 +53,51 @@ pivot["diff_male_female"] = pivot["Male"] - pivot["Female"]
 
 
 #print(pivot.isna().sum()) # Ingen NaN efter pivot (allt har värdet 0) vilket är bra!
+print("Missing alcohol:", merged["estimate_x"].isna().sum())
+print("Missing MPI:", merged["estimate_y"].isna().sum())
+
+# Inga dubletter
+'''duplicates = merged.duplicated(subset=["setting", "date", "subgroup_x"])
+print("Antal dubbletter:", duplicates.sum())
+dup_rows = merged[duplicates]
+print(dup_rows[["setting", "date", "subgroup_x", "estimate_x", "estimate_y"]].sort_values(["setting","date","subgroup_x"]))'''
+
+
+# Scatterplot för att se fördelningen
+'''sns.scatterplot(data=merged, x="estimate_x", y="estimate_y", hue="subgroup_x")
+plt.xlabel("Alcohol consumption (litres per capita, 15+)")
+plt.ylabel("MPI")
+plt.show()'''
+
+# Boxplots för att se outliers
+'''fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+sns.boxplot(y=merged["estimate_x"], ax=axes[0])
+axes[0].set_title("Alcohol")
+sns.boxplot(y=merged["estimate_y"], ax=axes[1])
+axes[1].set_title("MPI")
+plt.show()'''
+
+
+#test
+'''sns.boxplot(data=pivot[["Male", "Female", "diff_male_female", "estimate_y"]])
+plt.show()'''
+
+numerical_cols = ["Female", "Male", "estimate_y", "diff_male_female"]
+data_std = pivot[numerical_cols].copy()
+
+scaler = StandardScaler()
+data_scaled = scaler.fit_transform(data_std)
+
+data_scaled_df = pd.DataFrame(data_scaled, columns=numerical_cols)
+print(data_scaled_df.head())
+
+pca = PCA(n_components=2)
+pca_result = pca.fit_transform(data_scaled_df)
+
+print("Explained variance ratio:", pca.explained_variance_ratio_)
+
+pca_df = pd.DataFrame(pca_result, columns=["PC1", "PC2"])
+pca_df[["setting", "date"]] = pivot[["setting", "date"]].reset_index(drop=True)
+
+print(pd.DataFrame(pca.components_, columns=numerical_cols, index=["PC1", "PC2"]))
+
