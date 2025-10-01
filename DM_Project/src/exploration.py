@@ -22,6 +22,33 @@ print(alcohol_filtered[["setting", "date", "subgroup", "estimate"]].head())
 mpi = pd.read_excel("data/mpi.xlsx")
 #print(mpi.head())
 
+mpi_filtered = mpi[mpi["indicator_name"] == "Multidimensional Poverty Index"]
+
+# --- För 10 år och uppåt (10-17 + 18+) ---
+mpi_10_plus = mpi_filtered[mpi_filtered["subgroup"].isin(["10-17 years", "18+ years"])]
+
+# Beräkna globalt medelvärde per år
+avg_mpi_10_plus = mpi_10_plus.groupby("date")["estimate"].mean()
+
+# --- För endast 18+ ---
+mpi_18_plus = mpi_filtered[mpi_filtered["subgroup"] == "18+ years"]
+
+# Beräkna globalt medelvärde per år
+avg_mpi_18_plus = mpi_18_plus.groupby("date")["estimate"].mean()
+
+# --- Plotta ---
+plt.figure(figsize=(10,6))
+
+plt.plot(avg_mpi_10_plus.index, avg_mpi_10_plus.values, label="10+ years (global avg)", color="green")
+plt.plot(avg_mpi_18_plus.index, avg_mpi_18_plus.values, label="18+ years (global avg)", color="blue")
+
+plt.title("Global MPI trends by age group")
+plt.xlabel("Year")
+plt.ylabel("MPI (average across countries)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
 merged = alcohol_filtered.merge(mpi, on=["setting", "date"], how="inner")
 
 '''print(merged.head())
