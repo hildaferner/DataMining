@@ -4,6 +4,7 @@ import numpy as np
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from scipy import stats
 
 # Columns and rows of interest
 alcohol = pd.read_excel("data/alcohol.xlsx")
@@ -75,6 +76,8 @@ pivot = pivot.pivot_table(
 
 
 pivot["diff_male_female"] = pivot["Male"] - pivot["Female"]
+pivot["totalcon"] = pivot["Male"] + pivot["Female"]
+pivot["diff_male_female_proc"] = (pivot["Male"] - pivot["Female"]) / (pivot["Male"] + pivot["Female"])
 
 
 #print(pivot.isna().sum()) # Ingen NaN efter pivot (allt har värdet 0) vilket är bra!
@@ -126,3 +129,15 @@ pca_df[["setting", "date"]] = pivot[["setting", "date"]].reset_index(drop=True)
 
 print(pd.DataFrame(pca.components_, columns=numerical_cols, index=["PC1", "PC2"]))
 
+# Pearsons
+xp = pivot["diff_male_female"]
+yp = pivot["estimate_y"]
+
+res_p = stats.pearsonr(xp, yp)
+print("Pearson correlation:", res_p[0])
+
+sns.regplot(x=xp, y=yp, ci=None, line_kws={"color": "red"})
+plt.xlabel("Difference in alcohol consumption (Male - Female)")
+plt.ylabel("MPI")
+plt.title(f"Pearson r = {res_p[0]:.4f}")
+plt.show()
