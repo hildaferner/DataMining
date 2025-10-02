@@ -11,23 +11,48 @@ alcohol_filtered = alcohol[alcohol["indicator_name"] == "Alcohol, total per capi
 alcohol_filtered = alcohol_filtered[alcohol_filtered["subgroup"].isin(["Male", "Female"])]
 alcohol_filtered.drop(['source', 'population', 'flag', 'iso3', 'favourable_indicator', 'whoreg6', 'update', 'dataset_id', 'ordered_dimension', 'subgroup_order', 'reference_subgroup'], axis=1, inplace=True)
 
+print(len(alcohol_filtered))
+
+# Remove unsure datapoints
+# alcohol_filtered_dp = alcohol_filtered[alcohol_filtered["ci_lb"] != 0].copy()  # Where lower bound could be 0
+alcohol_filtered["rel_ci_width"] = (alcohol_filtered["ci_ub"] - alcohol_filtered["ci_lb"] )/ alcohol_filtered["estimate"]
+
+# Plot in order to choose value for rel_ci_witdh ---> X
+plt.hist(alcohol_filtered["rel_ci_width"], bins=50)
+plt.xlabel("Relative CI width")
+plt.ylabel("Count")
+plt.title("Distribution of relative CI width (Data: alcohol)")
+plt.show()
+
+x_alcohol = 2
+alcohol_filtered = alcohol_filtered[alcohol_filtered["rel_ci_width"] < x_alcohol].copy()
+print(len(alcohol_filtered))
+
 # Columns and rows of interest
 mpi = pd.read_excel("data/mpi.xlsx")
 mpi_filtered = mpi[mpi["indicator_abbr"] == "mpi"]
 mpi_10_plus = mpi_filtered[mpi_filtered["subgroup"].isin(["10-17 years", "18+ years"])]
+mpi_10_plus = mpi_10_plus.copy()
 mpi_10_plus.drop(['source', 'indicator_name', 'population', 'flag', 'favourable_indicator', 'ordered_dimension', 'subgroup_order', 'reference_subgroup', 'whoreg6', 'dataset_id', 'update'], axis=1, inplace=True)
 
-print(alcohol_filtered.head())
-print(mpi_10_plus.head())
+# Plot in order to choose value for SE ---> X
+plt.hist(mpi_10_plus["se"], bins=50)
+plt.xlabel("Standard Error (SE)")
+plt.ylabel("Count")
+plt.title("Distribution of Standard Error (Data: MPI)")
+plt.show()
 
-#print(len(alcohol_filtered))    # = 7866
-#print(len(mpi_10_plus))         # = 422
+print(len(mpi_10_plus))
+
+x_mpi = 0.01255
+mpi_10_plus = mpi_10_plus[mpi_10_plus["se"] < x_mpi].copy()
+
+print(len(mpi_10_plus))
 
 merged = alcohol_filtered.merge(mpi_10_plus, on=["setting", "date"], how="inner")
 
 #estimate_x → alkoholkonsumtion per capita (från alcohol.xlsx)
 #estimate_y → Multidimensional Poverty Index (från mpi.xlsx)
-
 
 pivot = merged.pivot_table(
     values="estimate_x",
